@@ -9,9 +9,8 @@
       </router-link>
       <ul class="nav-links">
         <li><router-link to="/catalog" class="nav-link">КАТАЛОГ</router-link></li>
-        <li><a href="#" class="nav-link">ЯК ЦЕ ПРАЦЮЄ</a></li>
-        <li><a href="#" class="nav-link">БЛОГ</a></li>
-        <li><a href="#" class="nav-link">ПРО НАС</a></li>
+        <li><router-link to="/blog" class="nav-link">БЛОГ</router-link></li>
+        <li><router-link to="/about" class="nav-link active">ПРО НАС</router-link></li>
       </ul>
       <div class="nav-actions">
         <button class="nav-icon-btn" @click="$router.push('/account')">
@@ -24,6 +23,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
+          <span class="nav-badge" v-if="wishlistCount > 0">{{ wishlistCount }}</span>
         </button>
         <button class="nav-icon-btn" @click="$router.push('/cart')">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -31,6 +31,7 @@
             <line x1="3" y1="6" x2="21" y2="6"/>
             <path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
+          <span class="nav-badge" v-if="cartCount > 0">{{ cartCount }}</span>
         </button>
         <button class="btn-book">ЗАПИСАТИСЬ</button>
       </div>
@@ -182,10 +183,12 @@
 
 <script>
 import { useToastStore } from '../stores/toast'
+import { mapState, mapActions } from 'pinia'
+import { useCartStore }     from '@/stores/cart'
+import { useWishlistStore } from '../stores/wishlist'
 import axios from 'axios'
 
 const API = 'http://localhost:5008/api'
-
 export default {
   name: 'DressView',
   data() {
@@ -231,6 +234,8 @@ export default {
     }
   },
 computed: {
+   ...mapState(useCartStore,     { cartCount: 'count' }),
+    ...mapState(useWishlistStore, { wishlistCount: 'count' }),
   dressImages() {
     try {
       const imgs = JSON.parse(this.dress.images || '[]')
@@ -280,12 +285,18 @@ computed: {
     }
     window.addEventListener('scroll', this.handleScroll)
   },
-
+ mounted() {
+    this.fetchCartCount()
+    this.fetchWishlist()
+  },
   unmounted() {
+  
     window.removeEventListener('scroll', this.handleScroll)
   },
 
   methods: {
+     ...mapActions(useCartStore,     ['fetchCartCount']),
+    ...mapActions(useWishlistStore, ['fetchWishlist']),
     handleScroll() {
       this.isScrolled = window.scrollY > 40
     },
@@ -672,4 +683,24 @@ const toast = useToastStore()
 .slide-enter-active, .slide-leave-active { transition: all 0.25s ease; overflow: hidden; }
 .slide-enter-from, .slide-leave-to { opacity: 0; max-height: 0; }
 .slide-enter-to, .slide-leave-from { opacity: 1; max-height: 200px; }
+.nav-icon-btn {
+  position: relative; /* Це обов'язково, щоб бедж "прилип" до кнопки */
+}
+
+.nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  background: #c9a84c; /* Ваш золотий колір */
+  color: #000;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
 </style>

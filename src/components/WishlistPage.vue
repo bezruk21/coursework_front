@@ -8,9 +8,8 @@
       </router-link>
       <ul class="nav-links">
         <li><router-link to="/catalog" class="nav-link">КАТАЛОГ</router-link></li>
-        <li><a href="#" class="nav-link">ЯК ЦЕ ПРАЦЮЄ</a></li>
-        <li><a href="#" class="nav-link">БЛОГ</a></li>
-        <li><a href="#" class="nav-link">ПРО НАС</a></li>
+        <li><router-link to="/blog" class="nav-link">БЛОГ</router-link></li>
+        <li><router-link to="/about" class="nav-link active">ПРО НАС</router-link></li>
       </ul>
       <div class="nav-actions">
         <button class="nav-icon-btn" @click="$router.push('/account')" title="Акаунт">
@@ -23,6 +22,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
+          <span class="nav-badge" v-if="wishlistCount > 0">{{ wishlistCount }}</span>
         </button>
         <button class="nav-icon-btn" @click="$router.push('/cart')" title="Кошик">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -30,6 +30,7 @@
             <line x1="3" y1="6" x2="21" y2="6"/>
             <path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
+          <span class="nav-badge" v-if="cartCount > 0">{{ cartCount }}</span>
         </button>
         <button class="btn-book" @click="$router.push('/')">ЗАПИСАТИСЬ</button>
       </div>
@@ -86,19 +87,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
   import { useToastStore } from '../stores/toast'
+  import { useWishlistStore } from '../stores/wishlist'
+import { useCartStore }     from '../stores/cart'
 import axios from 'axios'
 
 const API = 'http://localhost:5008/api'
 const authStore = useAuthStore()
 const router = useRouter()
 const items = ref([])
+const wishlistStore = useWishlistStore()
+const cartStore = useCartStore()
 const loading = ref(true)
 const isScrolled = ref(false)
-
+const wishlistCount = computed(() => wishlistStore.count || 0)
+const cartCount     = computed(() => cartStore.count     || 0)
 window.addEventListener('scroll', () => { isScrolled.value = window.scrollY > 40 })
 
 async function fetchWishlist() {
@@ -124,6 +130,8 @@ function formatPrice(p) {
 }
 
 onMounted(() => {
+  wishlistStore.fetchWishlist()
+  cartStore.fetchCartCount()
   if (!authStore.user) { router.push('/login'); return }
   fetchWishlist()
 })

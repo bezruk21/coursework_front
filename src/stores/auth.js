@@ -31,5 +31,5 @@ export const useAuthStore = defineStore('auth', () => {
   localStorage.setItem('user', JSON.stringify(user.value))
 }
 
-  return { user, isLoggedIn, login, register, logout }
+  return { user, isLoggedIn, login, register, logout, updateUser }
 })

@@ -10,10 +10,8 @@
       </router-link>
       <ul class="nav-links">
         <li><router-link to="/catalog" class="nav-link">КАТАЛОГ</router-link></li>
-        <li><a href="#" class="nav-link">ДИЗАЙНЕРИ</a></li>
-        <li><a href="#" class="nav-link">ЯК ЦЕ ПРАЦЮЄ</a></li>
-        <li><a href="#" class="nav-link">БЛОГ</a></li>
-        <li><a href="#" class="nav-link">ПРО НАС</a></li>
+        <li><router-link to="/blog" class="nav-link">БЛОГ</router-link></li>
+        <li><router-link to="/about" class="nav-link active">ПРО НАС</router-link></li>
       </ul>
       <div class="nav-actions">
         <button class="nav-icon-btn active" title="Акаунт">
@@ -26,6 +24,7 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
+          <span class="nav-badge" v-if="wishlistCount > 0">{{ wishlistCount }}</span>
         </button>
         <button class="nav-icon-btn" @click="$router.push('/cart')" title="Кошик">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -33,6 +32,7 @@
             <line x1="3" y1="6" x2="21" y2="6"/>
             <path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
+          <span class="nav-badge" v-if="cartCount > 0">{{ cartCount }}</span>
         </button>
         <button class="btn-book">ЗАПИСАТИСЬ</button>
       </div>
@@ -136,31 +136,48 @@
       <!-- ІСТОРІЯ ЗАМОВЛЕНЬ -->
       <div class="profile-section" v-if="activeTab === 'orders'">
         <div class="section-title">ІСТОРІЯ ЗАМОВЛЕНЬ</div>
+<div class="orders-empty" v-if="orders.length === 0">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <path d="M16 10a4 4 0 0 1-8 0"/>
+  </svg>
+  <p>Замовлень ще немає</p>
+  <router-link to="/catalog" class="btn-gold">ПЕРЕГЛЯНУТИ КАТАЛОГ</router-link>
+</div>
 
-        <div class="orders-empty" v-if="orders.length === 0">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
-          <p>Замовлень ще немає</p>
-          <router-link to="/catalog" class="btn-gold">ПЕРЕГЛЯНУТИ КАТАЛОГ</router-link>
-        </div>
+<div class="orders-list" v-else>
+  <div class="order-card" v-for="order in orders" :key="order.id">
+    <div class="order-card-header">
+      <div class="order-meta">
+        <span class="order-num">Замовлення #{{ order.id }}</span>
+        <span class="order-date">{{ new Date(order.createdAt).toLocaleDateString('uk-UA') }}</span>
+      </div>
+      <div class="order-status-badge" :class="order.status">
+        {{ order.status === 'pending' ? 'В обробці' : 'Завершено' }}
+      </div>
+    </div>
 
-        <div class="orders-list" v-else>
-          <div class="order-item" v-for="order in orders" :key="order.id">
-            <div class="order-img">
-              <img :src="order.imageUrl" :alt="order.name" />
-            </div>
-            <div class="order-info">
-              <span class="order-brand">{{ order.brand }}</span>
-              <span class="order-name">{{ order.name }}</span>
-              <span class="order-dates">{{ order.dateFrom }} — {{ order.dateTo }}</span>
-            </div>
-            <div class="order-price">{{ order.price?.toLocaleString('uk-UA') }} ₴</div>
-            <div class="order-status" :class="order.status">{{ order.statusLabel }}</div>
-          </div>
+    <div class="order-items">
+      <div class="order-item" v-for="item in order.items" :key="item.dressName">
+        <div class="order-img">
+          <img :src="item.imageUrl" :alt="item.dressName" />
         </div>
+        <div class="order-info">
+          <span class="order-brand">{{ item.brand }}</span>
+          <span class="order-name">{{ item.dressName }}</span>
+          <span class="order-qty">× {{ item.quantity }}</span>
+        </div>
+        <span class="order-price">{{ item.subtotal?.toLocaleString('uk-UA') }} ₴</span>
+      </div>
+    </div>
+
+    <div class="order-card-footer">
+      <span class="order-delivery">{{ order.deliveryType === 'showroom' ? 'Самовивіз' : 'Нова Пошта' }}</span>
+      <span class="order-total">РАЗОМ: {{ order.total?.toLocaleString('uk-UA') }} ₴</span>
+    </div>
+  </div>
+</div>
       </div>
 
     </div>
@@ -168,29 +185,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useOrdersStore } from '../stores/orders'
 import { useToastStore } from '../stores/toast'
+import { useWishlistStore } from '../stores/wishlist'
+import { useCartStore } from '../stores/cart'
+import axios from 'axios'
+
+const API = 'http://localhost:5008/api'
 const toast = useToastStore()
 const ordersStore = useOrdersStore()
 const authStore = useAuthStore()
 const router = useRouter()
+const wishlistStore = useWishlistStore()
+const cartStore = useCartStore()        // ← додай присвоєння
+
+// Бейджі для navbar
+const wishlistCount = computed(() => wishlistStore.count || 0)
+const cartCount = computed(() => cartStore.count || 0)
+
 const isScrolled = ref(false)
 const activeTab = ref('personal')
 const orders = ref([])
 const editMode = ref(false)
 const saveMsg = ref('')
 const editForm = ref({
-  username: authStore.user.username,
-  email: authStore.user.email,
-  phone: authStore.user.phone || '',
+  username: authStore.user?.username ?? '',
+  email: authStore.user?.email ?? '',
+  phone: authStore.user?.phone ?? '',
   password: '',
 })
 
+async function fetchOrders() {
+  if (!authStore.user) return
+  try {
+    const { data } = await axios.get(`${API}/orders/${authStore.user.id}`)
+    orders.value = data
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 function saveProfile() {
-  // Якщо є бек — тут буде fetch/axios до API
   authStore.updateUser({
     username: editForm.value.username,
     email: editForm.value.email,
@@ -206,7 +244,7 @@ const tabs = [
   { id: 'orders',   label: 'ІСТОРІЯ ЗАМОВЛЕНЬ' },
 ]
 
-window.addEventListener('scroll', () => { isScrolled.value = window.scrollY > 40 })
+
 
 function logout() {
   authStore.logout()
@@ -214,8 +252,10 @@ function logout() {
 }
 
 onMounted(() => {
-  // тут можна завантажити замовлення з беку
-  // поки порожньо
+  fetchOrders()
+  wishlistStore.fetchWishlist()
+  cartStore.fetchCartCount()
+  window.addEventListener('scroll', () => { isScrolled.value = window.scrollY > 40 })
 })
 </script>
 
@@ -579,4 +619,24 @@ onMounted(() => {
 .order-list-enter-active, .order-list-leave-active { transition: all 0.35s ease; }
 .order-list-enter-from { opacity: 0; transform: translateY(-12px); }
 .order-list-leave-to { opacity: 0; transform: translateX(12px); }
+.order-card { background: #111; border: 1px solid #1e1e1e; margin-bottom: 15px; }
+.order-card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #1a1a1a; }
+.order-meta { display: flex; flex-direction: column; gap: 4px; }
+.order-num { font-size: 12px; color: #fff; letter-spacing: 1px; }
+.order-date { font-size: 11px; color: #444; }
+.order-status-badge { font-size: 10px; letter-spacing: 2px; padding: 4px 12px; }
+.order-status-badge.pending { background: rgba(201,168,76,0.1); color: #c9a84c; border: 1px solid rgba(201,168,76,0.3); }
+.order-status-badge.completed { background: rgba(100,180,100,0.1); color: #6ab46a; border: 1px solid rgba(100,180,100,0.3); }
+.order-items { padding: 15px 20px; display: flex; flex-direction: column; gap: 12px; }
+.order-item { display: grid; grid-template-columns: 60px 1fr auto; gap: 15px; align-items: center; }
+.order-img { width: 60px; height: 80px; overflow: hidden; background: #1a1a1a; }
+.order-img img { width: 100%; height: 100%; object-fit: cover; }
+.order-info { display: flex; flex-direction: column; gap: 4px; }
+.order-brand { font-size: 9px; letter-spacing: 2px; color: #c9a84c; }
+.order-name { font-size: 13px; color: #fff; font-weight: 300; }
+.order-qty { font-size: 11px; color: #444; }
+.order-price { font-size: 13px; color: #fff; }
+.order-card-footer { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid #1a1a1a; }
+.order-delivery { font-size: 11px; color: #555; letter-spacing: 1px; }
+.order-total { font-size: 13px; color: #c9a84c; letter-spacing: 2px; }
 </style>

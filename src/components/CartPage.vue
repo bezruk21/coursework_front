@@ -10,9 +10,8 @@
 
       <ul class="nav-links">
         <li><router-link to="/catalog" class="nav-link">КАТАЛОГ</router-link></li>
-        <li><a href="#" class="nav-link">ЯК ЦЕ ПРАЦЮЄ</a></li>
-        <li><a href="#" class="nav-link">БЛОГ</a></li>
-        <li><a href="#" class="nav-link">ПРО НАС</a></li>
+        <li><router-link to="/blog" class="nav-link">БЛОГ</router-link></li>
+        <li><router-link to="/about" class="nav-link active">ПРО НАС</router-link></li>
       </ul>
 
       <div class="nav-actions">
@@ -22,18 +21,23 @@
             <circle cx="12" cy="7" r="4"/>
           </svg>
         </button>
+
         <button class="nav-icon-btn" @click="$router.push('/wishlist')" title="Обране">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
+          <span class="nav-badge" v-if="wishlist.count > 0">{{ wishlist.count }}</span>
         </button>
+
         <button class="nav-icon-btn active" @click="$router.push('/cart')" title="Кошик">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
             <line x1="3" y1="6" x2="21" y2="6"/>
             <path d="M16 10a4 4 0 0 1-8 0"/>
           </svg>
+          <span class="nav-badge" v-if="cartStore.count > 0">{{ cartStore.count }}</span>
         </button>
+
         <button class="btn-book" @click="$router.push('/')">ЗАПИСАТИСЬ</button>
       </div>
     </nav>
@@ -107,13 +111,16 @@ import { useAuthStore } from '../stores/auth'
 import { useOrdersStore } from '../stores/orders'
  import { useToastStore } from '../stores/toast'
 import axios from 'axios'
+import { useWishlistStore } from '../stores/wishlist'
+import { useCartStore } from '../stores/cart'
 
 
 const API = 'http://localhost:5008/api'
 const authStore = useAuthStore()
 const router = useRouter()
 const ordersStore = useOrdersStore()
-
+const wishlist = useWishlistStore()
+const cartStore = useCartStore()
 const cart = ref({ Items: [], Count: 0, Total: 0 })
 const loading = ref(true)
 const isScrolled = ref(false)
@@ -160,20 +167,19 @@ const toast = useToastStore()
 
 function checkout() {
   ordersStore.addOrder({
-    name: product.name,
-    brand: product.brand,
-    imageUrl: product.imageUrl,
-    price: product.price,
-    dateFrom: selectedDateFrom.value,
-    dateTo: selectedDateTo.value,
+    items: cart.value.Items,     
+    totalItems: cart.value.Count, 
+    totalPrice: cart.value.Total
   })
-  router.push('/account')
+  router.push('/checkout')
 }
 function formatPrice(p) { return Number(p).toLocaleString('uk-UA') }
 
 onMounted(() => {
   if (!authStore.user) { router.push('/login'); return }
   fetchCart()
+  wishlist.fetchWishlist()
+  cartStore.fetchCartCount()
 })
 </script>
 

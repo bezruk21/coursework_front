@@ -8,6 +8,9 @@ import RegisterPage from '../components/RegisterPage.vue'
 import AdminPanel from '../components/AdminPanel.vue'
 import WishlistPage from '../components/WishlistPage.vue'
 import CartPage from '../components/CartPage.vue'
+import CheckoutPage from '../components/CheckoutPage.vue'
+import BlogPage from '../components/BlogPage.vue'
+import AboutPage from '../components/AboutPage.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -17,6 +20,9 @@ const routes = [
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
   { path: '/cart', component: CartPage },
+  { path: '/blog', component: BlogPage },
+{ path: '/about', component: AboutPage },
+  
   { path: '/wishlist', component: WishlistPage },
   {
     path: '/admin',
@@ -30,6 +36,7 @@ const routes = [
       }
     }
   },
+  { path: '/checkout', component: CheckoutPage },
 ]
 
 export default createRouter({

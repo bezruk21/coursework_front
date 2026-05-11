@@ -31,7 +31,7 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
-    <span class="nav-badge" v-if="wishlist.count > 0">{{ wishlist.count }}</span>
+    <span class="nav-badge" v-if="wishlistCount > 0">{{ wishlistCount }}</span>
   </button>
 
   <button class="nav-icon-btn" @click="$router.push('/cart')" title="Кошик">
@@ -40,7 +40,7 @@
       <line x1="3" y1="6" x2="21" y2="6"/>
       <path d="M16 10a4 4 0 0 1-8 0"/>
     </svg>
-    <span class="nav-badge" v-if="cart.count > 0">{{ cart.count }}</span>
+<span class="nav-badge" v-if="cartCount > 0">{{ cartCount }}</span>
   </button>
 
   <button class="btn-primary" @click="openBooking">Записатись</button>
@@ -82,7 +82,6 @@
         </p>
         <div class="hero-actions">
           <router-link to="/catalog" class="btn-primary">ПЕРЕГЛЯНУТИ КАТАЛОГ</router-link>
-          <a href="#how" class="hero-link">Як це працює</a>
         </div>
       </div>
 
@@ -299,9 +298,11 @@
     </Transition>
   </div>
 </template>
-
 <script>
 import { useToastStore } from '../stores/toast'
+import { mapState, mapActions } from 'pinia'
+import { useWishlistStore } from '../stores/wishlist'
+import { useCartStore } from '../stores/cart'
 import axios from 'axios'
 
 class NavigationManager {
@@ -328,14 +329,13 @@ class NotificationService {
 }
 
 export default {
-  name: 'App',
+  name: 'Home',
 
   data() {
     const navManager = new NavigationManager([
       { id: 'catalog',   href: '#catalog',   label: 'Каталог' },
-      { id: 'how',       href: '#how',       label: 'Як це працює' },
-      { id: 'blog',      href: '#blog',      label: 'Блог' },
-      { id: 'about',     href: '#about',     label: 'Про нас' },
+  { id: 'blog',      href: '/blog',      label: 'Блог' },
+  { id: 'about',     href: '/about',     label: 'Про нас' },
     ])
 
     return {
@@ -369,9 +369,9 @@ heroImages: [
       ],
       sizes: ['XS', 'S', 'M', 'L', 'XL'],
      categories: [
-  { id: 1, name: 'Вечірні',    count: 120, image: 'https://images.unsplash.com/photo-1566479179817-c6d5c1d83c55?w=800&h=1000&fit=crop' },
-  { id: 2, name: 'Коктейльні', count: 85,  image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800&h=600&fit=crop' },
-  { id: 3, name: 'Весільні',   count: 64,  image: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop' },
+  { id: 1, name: 'Вечірні',    count: 120, image: 'https://images.pexels.com/photos/20059594/pexels-photo-20059594.jpeg' },
+  { id: 2, name: 'Коктейльні', count: 85,  image: 'https://images.pexels.com/photos/31083468/pexels-photo-31083468.jpeg' },
+  { id: 3, name: 'Весільні',   count: 64,  image: 'https://images.pexels.com/photos/29037548/pexels-photo-29037548.jpeg' },
   { id: 4, name: 'Casual',     count: 93,  image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=600&fit=crop' },
 ],
       howItWorks: [
@@ -399,6 +399,8 @@ heroImages: [
   },
 
   computed: {
+    ...mapState(useCartStore, { cartCount: 'count' }),
+    ...mapState(useWishlistStore, { wishlistCount: 'count' }),
     currentYear() { return new Date().getFullYear() },
 
     notificationStyle() {
@@ -431,6 +433,8 @@ heroImages: [
     document.addEventListener('mousemove', this.moveCursor)
     this.initReveal()
     this.startHeroSlider()
+    this.fetchCartCount()
+    this.fetchWishlist()
     await this.fetchDresses()
     await this.fetchCart()
   },
@@ -441,17 +445,23 @@ heroImages: [
   },
 
   methods: {
-    // Navigation
+    ...mapActions(useCartStore, ['fetchCartCount']),
+    ...mapActions(useWishlistStore, ['fetchWishlist']),
     setActiveLink(id) {
       this.navManager.setActive(id)
-      this.activeLink = id
-      if (id === 'catalog') {
+  this.activeLink = id
+  if (id === 'catalog') { this.$router.push('/catalog'); return }
+  if (id === 'blog') { this.$router.push('/blog'); return }
+  if (id === 'about') { this.$router.push('/about'); return }
+  const el = document.getElementById(id)
+  if (el) el.scrollIntoView({ behavior: 'smooth' })
+   {
     this.$router.push('/catalog')
     return
   }
   // для інших — скрол до секції
-  const el = document.getElementById(id)
-  if (el) el.scrollIntoView({ behavior: 'smooth' })
+  const element = document.getElementById(id)
+if (element) element.scrollIntoView({ behavior: 'smooth' })
     },
     toggleAccount() { this.$router.push('/account') },
     toggleWishlistNav() { this.notification.notify(`В обраному: ${this.wishlist.count} суконь`) },
@@ -479,7 +489,7 @@ startHeroSlider() {
       const user = JSON.parse(localStorage.getItem('user'))
       if (!user) return
       try {
-        const { data } = await axios.get(`http://localhost:5008/api/cart/${user.id}`)
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/dresses`)
         this.cart = { count: data.Count, items: data.Items }
       } catch (e) {
         console.error('Помилка кошика:', e)
@@ -577,5 +587,25 @@ moveCursor(e) {
 .notification-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+.nav-icon-btn {
+  position: relative; /* Це обов'язково, щоб бедж "прилип" до кнопки */
+}
+
+.nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  background: #c9a84c; /* Ваш золотий колір */
+  color: #000;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
 }
 </style>

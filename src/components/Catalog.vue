@@ -11,9 +11,8 @@
 
   <ul class="nav-links">
     <li><router-link to="/catalog" class="nav-link active">КАТАЛОГ</router-link></li>
-    <li><a href="#" class="nav-link">ЯК ЦЕ ПРАЦЮЄ</a></li>
-    <li><a href="#" class="nav-link">БЛОГ</a></li>
-    <li><a href="#" class="nav-link">ПРО НАС</a></li>
+    <li><router-link to="/blog" class="nav-link">БЛОГ</router-link></li>
+        <li><router-link to="/about" class="nav-link active">ПРО НАС</router-link></li>
   </ul>
 
   <div class="nav-actions">
@@ -28,7 +27,7 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
-    <span v-if="wishedIds.size > 0" class="nav-badge">{{ wishedIds.size }}</span>
+    <span v-if="wishlistCount > 0" class="nav-badge">{{ wishlistCount }}</span>
   </button>
 
   <button class="nav-icon-btn" @click="$router.push('/cart')" title="Кошик">
@@ -205,6 +204,9 @@
 
 <script>
 import axios from 'axios'
+import { mapState, mapActions } from 'pinia'
+import { useWishlistStore } from '../stores/wishlist'
+import { useCartStore } from '../stores/cart'
  import { useToastStore } from '../stores/toast'
 export default {
   name: 'Catalog',
@@ -224,48 +226,79 @@ export default {
       priceMax: null,
       hoverDress: null,
       selectedSizes: [],
-      wishedIds: new Set(),
-      onlyNew: false, // тепер означає "не була в прокаті"
+      onlyNew: false,
       sortBy: 'all',
       dresses: []
     }
   },
 
   computed: {
+    // Підключаємо лічильники з Pinia
+    ...mapState(useCartStore, { cartCount: 'count' }),
+    ...mapState(useWishlistStore, { 
+      wishlistCount: 'count', 
+      wishedIds: 'wishedIds' 
+    }),
   filteredDresses() {
     let result = [...this.dresses]
 
-    if (this.selectedSizes.length > 0) {
-  result = result.filter(d => {
-    try {
-      const sizes = JSON.parse(d.sizes || '[]')
-      return this.selectedSizes.some(s => sizes.includes(s))
-    } catch { return false }
-  })
-}
+      // 1. Фільтр по події (Весілля, Випускний тощо)
+      if (this.selectedOccasions.length > 0) {
+        result = result.filter(d => {
+          try {
+            // Розшифровуємо рядок occasions у справжній масив
+            const occs = JSON.parse(d.occasions || '[]')
+            // Перевіряємо, чи хоча б одна вибрана галочка є в цьому масиві
+            return this.selectedOccasions.some(o => occs.includes(o))
+          } catch { 
+            return false 
+          }
+        })
+      }
 
-    if (this.selectedDresscodes.length > 0) {
-      result = result.filter(d => this.selectedDresscodes.includes(d.dresscode))
+      // 2. Фільтр по розмірах
+      if (this.selectedSizes.length > 0) {
+        result = result.filter(d => {
+          try {
+            const sizes = JSON.parse(d.sizes || '[]')
+            return this.selectedSizes.some(s => sizes.includes(s))
+          } catch { return false }
+        })
+      }
+
+      // 3. Фільтр по дрескоду
+      if (this.selectedDresscodes.length > 0) {
+        result = result.filter(d => this.selectedDresscodes.includes(d.dresscode))
+      }
+
+      // 4. Інші фільтри
+      if (this.onlyNew) result = result.filter(d => !d.wasRented)
+      if (this.priceMin) result = result.filter(d => d.price >= this.priceMin)
+      if (this.priceMax) result = result.filter(d => d.price <= this.priceMax)
+      
+      // Сортування
+      if (this.sortBy === 'price_asc') result.sort((a, b) => a.price - b.price)
+      if (this.sortBy === 'price_desc') result.sort((a, b) => b.price - a.price)
+      if (this.sortBy === 'new') result = result.filter(d => d.isNew)
+
+      return result
     }
-
-    if (this.onlyNew) result = result.filter(d => !d.wasRented)
-    if (this.priceMin) result = result.filter(d => d.price >= this.priceMin)
-    if (this.priceMax) result = result.filter(d => d.price <= this.priceMax)
-    if (this.sortBy === 'price_asc') result.sort((a, b) => a.price - b.price)
-    if (this.sortBy === 'price_desc') result.sort((a, b) => b.price - a.price)
-    if (this.sortBy === 'new') result = result.filter(d => d.isNew)
-
-    return result
-  }
 },
  async mounted() {
+  this.fetchWishlist();
+  this.fetchCartCount();
+
   console.log('Catalog mounted!')
   window.addEventListener('scroll', this.handleScroll)
+
+  // 2. Фільтри з URL-адреси
   const params = new URLSearchParams(window.location.search)
-const occasion = params.get('occasion')
-const size = params.get('size')
-if (occasion) this.selectedOccasions = [occasion]
-if (size) this.selectedSizes = [size]
+  const occasion = params.get('occasion')
+  const size = params.get('size')
+  if (occasion) this.selectedOccasions = [occasion]
+  if (size) this.selectedSizes = [size]
+
+  // 3. Завантажуємо сукні (один раз!)
   try {
     console.log('Fetching dresses...')
     const response = await fetch('http://localhost:5008/api/dresses')
@@ -275,27 +308,11 @@ if (size) this.selectedSizes = [size]
   } catch (error) {
     console.error('Не вдалося завантажити каталог', error)
   }
-   try {
-    const response = await fetch('http://localhost:5008/api/dresses')
-    const data = await response.json()
-    this.dresses = data
-  } catch (error) {
-    console.error('Не вдалося завантажити каталог', error)
-  }
-
-  // завантажити обране
-  const user = JSON.parse(localStorage.getItem('user'))
-  if (user) {
-    try {
-      const { data } = await axios.get(`http://localhost:5008/api/wishlist/${user.id}`)
-      this.wishedIds = new Set(data.map(item => item.dressId ?? item.id))
-    } catch (e) {
-      console.error(e)
-    }
-  }
 },
+
   methods: {
-    
+    ...mapActions(useWishlistStore, ['toggleWish', 'fetchWishlist']),
+    ...mapActions(useCartStore, ['fetchCartCount']),
     toggle(key) { this.open[key] = !this.open[key] },
     clearFilters() {
       this.selectedOccasions = []
